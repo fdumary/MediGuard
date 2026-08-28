@@ -238,7 +238,7 @@ VITE_WS_URL=ws://localhost:8000/ws
 
 ## Team
 
-_Add your team name and members here._
+_team portion._
 
 ## Hackathon
 
