@@ -12,3 +12,5 @@ python-multipart
 Pillow
 pytesseract
 aiofiles
+sqlalchemy
+aiosqlite

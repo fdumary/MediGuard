@@ -10,8 +10,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import router
 from api.websocket import manager
+from database import init_db
 
 app = FastAPI(title="MediGuard API", description="Complete Patient Safety Platform")
+@app.on_event("startup")
+async def on_startup():
+    await init_db()
 
 app.add_middleware(
     CORSMiddleware,
