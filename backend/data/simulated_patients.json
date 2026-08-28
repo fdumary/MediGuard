@@ -1,0 +1,38 @@
+[
+  {
+    "patient_id": "P-001",
+    "name": "John Carter",
+    "age": 45,
+    "heart_rate": 78,
+    "blood_pressure": "118/76",
+    "temperature": 36.8,
+    "respiratory_rate": 16,
+    "lactate": 1.1,
+    "wbc_count": 7.2,
+    "current_medications": ["Metformin", "Lisinopril"]
+  },
+  {
+    "patient_id": "P-002",
+    "name": "Maria Gomez",
+    "age": 62,
+    "heart_rate": 104,
+    "blood_pressure": "98/64",
+    "temperature": 38.1,
+    "respiratory_rate": 20,
+    "lactate": 2.3,
+    "wbc_count": 13.5,
+    "current_medications": ["Atorvastatin", "Metoprolol", "Furosemide"]
+  },
+  {
+    "patient_id": "P-003",
+    "name": "Robert Chen",
+    "age": 71,
+    "heart_rate": 132,
+    "blood_pressure": "82/54",
+    "temperature": 39.6,
+    "respiratory_rate": 27,
+    "lactate": 4.8,
+    "wbc_count": 18.9,
+    "current_medications": ["Warfarin", "Digoxin", "Amiodarone", "Spironolactone"]
+  }
+]

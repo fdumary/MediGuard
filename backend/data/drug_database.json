@@ -1,0 +1,29 @@
+{
+  "known_dangerous_combinations": [
+    {
+      "drugs": ["Warfarin", "Amiodarone"],
+      "risk": "high",
+      "reason": "Amiodarone inhibits Warfarin metabolism, sharply increasing bleeding risk."
+    },
+    {
+      "drugs": ["Digoxin", "Amiodarone"],
+      "risk": "critical",
+      "reason": "Amiodarone raises Digoxin serum levels, risking cardiac toxicity."
+    },
+    {
+      "drugs": ["Spironolactone", "Lisinopril"],
+      "risk": "high",
+      "reason": "Combined use raises the risk of dangerous hyperkalemia and kidney injury."
+    },
+    {
+      "drugs": ["Furosemide", "Digoxin"],
+      "risk": "medium",
+      "reason": "Furosemide-induced hypokalemia increases the risk of Digoxin toxicity."
+    }
+  ],
+  "safe_alternatives": {
+    "Warfarin": ["Apixaban", "Rivaroxaban"],
+    "Amiodarone": ["Sotalol", "Dronedarone"],
+    "Spironolactone": ["Eplerenone"]
+  }
+}
