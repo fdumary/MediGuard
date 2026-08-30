@@ -6,13 +6,27 @@ import os
 from datetime import datetime, timezone
 
 from langchain_groq import ChatGroq
+from pydantic import BaseModel, Field
 
 from graph.state import SepsisGuardState
 from models.schemas import PatientVitals
 from prompts.vitals_prompt import VITALS_SENTINEL_PROMPT
 from tools.sofa_calculator import calculate_qsofa, classify_severity
 
-llm = ChatGroq(model="llama-3.1-8b-instant", groq_api_key=os.getenv("GROQ_API_KEY"))
+llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY"))
+
+
+class VitalsAssessment(BaseModel):
+    rationale: str = Field(description="One or two sentence clinical rationale a nurse can read in seconds")
+    suspected_infection_source: str = Field(
+        description="Best-guess infection source (e.g. urinary, respiratory, abdominal, skin/soft-tissue, unknown) inferred from the vitals pattern"
+    )
+    recommended_actions: list[str] = Field(
+        description="Immediate next actions, e.g. 'draw blood cultures', 'start IV fluids'"
+    )
+
+
+structured_llm = llm.with_structured_output(VitalsAssessment)
 
 
 def run(state: SepsisGuardState) -> SepsisGuardState:
@@ -22,21 +36,29 @@ def run(state: SepsisGuardState) -> SepsisGuardState:
     severity = classify_severity(qsofa_score, vitals.lactate)
 
     sepsis_alert = None
+    suspected_infection_source = ""
+    recommended_actions: list[str] = []
+
     if qsofa_score >= 2:
-        # Ask the LLM for a short clinical rationale to attach to the alert.
-        response = llm.invoke(
+        assessment = structured_llm.invoke(
             [
                 ("system", VITALS_SENTINEL_PROMPT),
-                ("human", f"Vitals: {vitals.model_dump()}\nqSOFA score: {qsofa_score}\nSeverity: {severity}"),
+                (
+                    "human",
+                    f"Vitals: {vitals.model_dump()}\nqSOFA score: {qsofa_score}\nSeverity: {severity}",
+                ),
             ]
         )
+        suspected_infection_source = assessment.suspected_infection_source
+        recommended_actions = assessment.recommended_actions
+
         sepsis_alert = {
             "patient_id": vitals.patient_id,
             "qsofa_score": qsofa_score,
             "severity": severity,
             "triggered_at": datetime.now(timezone.utc).isoformat(),
             "vitals": vitals.model_dump(),
-            "rationale": response.content,
+            "rationale": assessment.rationale,
         }
 
     return {
@@ -44,4 +66,6 @@ def run(state: SepsisGuardState) -> SepsisGuardState:
         "qsofa_score": qsofa_score,
         "severity": severity,
         "sepsis_alert": sepsis_alert,
+        "suspected_infection_source": suspected_infection_source,
+        "recommended_actions": recommended_actions,
     }
