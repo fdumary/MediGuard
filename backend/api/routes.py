@@ -1,22 +1,31 @@
-# REST API routes for MediGuard: patient vitals ingestion (SepsisGuard) and
-# prescription submission (CrossCare), each triggering their LangGraph workflow.
+# REST API routes for MediGuard: patient vitals ingestion (SepsisGuard),
+# prescription submission (CrossCare, JSON or PDF upload), SQLite persistence
+# of every result, and download endpoints for the Nutrient-generated signed
+# audit / drug report PDFs.
 
+import base64
 import json
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.websocket import manager
+from database import InteractionResultRecord, PrescriptionRecord, SepsisAlertRecord, VitalsRecord, get_session
 from graph.crosscare_workflow import crosscare_app
 from graph.sepsisguard_workflow import sepsisguard_app
 from models.schemas import PatientVitals, Prescription
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from database import get_session, VitalsRecord, SepsisAlertRecord, PrescriptionRecord, InteractionResultRecord
 
 router = APIRouter()
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+
+# In-memory result caches keyed by patient_id, so the download endpoints
+# below can serve the most recent PDF without an extra DB round-trip. SQLite
+# (see backend/database.py) is the durable store; this is just a hot cache.
+_sepsisguard_results: dict[str, dict] = {}
+_crosscare_results: dict[str, dict] = {}
 
 
 @router.get("/patients")
@@ -29,6 +38,7 @@ async def list_patients():
 async def submit_vitals(vitals: PatientVitals, db: AsyncSession = Depends(get_session)):
     """Feeds a vitals reading into the SepsisGuard LangGraph pipeline."""
     result = sepsisguard_app.invoke({"patient_id": vitals.patient_id, "vitals": vitals.model_dump()})
+    _sepsisguard_results[vitals.patient_id] = result
 
     db.add(VitalsRecord(patient_id=vitals.patient_id, vitals=vitals.model_dump()))
     if result.get("sepsis_alert"):
@@ -54,6 +64,7 @@ async def submit_prescription(prescription: Prescription, db: AsyncSession = Dep
             "dosages": prescription.dosages,
         }
     )
+    _crosscare_results[prescription.patient_id] = result
 
     db.add(PrescriptionRecord(
         patient_id=prescription.patient_id,
@@ -69,6 +80,79 @@ async def submit_prescription(prescription: Prescription, db: AsyncSession = Dep
     await db.commit()
 
     return result
+
+
+@router.post("/upload-prescription")
+async def upload_prescription(patient_id: str, file: UploadFile = File(...), db: AsyncSession = Depends(get_session)):
+    """
+    Accepts an uploaded prescription PDF, runs it through the CrossCare
+    pipeline (Nutrient Data Extraction -> Pharmacology Interaction ->
+    Physician Recommendation), persists the result, and returns the drug
+    interaction findings plus a pointer to the downloadable report PDF.
+    """
+    pdf_bytes = await file.read()
+    result = crosscare_app.invoke(
+        {
+            "patient_id": patient_id,
+            "ocr_text": [],
+            "prescription_pdf_base64": base64.b64encode(pdf_bytes).decode(),
+        }
+    )
+    _crosscare_results[patient_id] = result
+
+    db.add(PrescriptionRecord(
+        patient_id=patient_id,
+        doctor_name=None,
+        prescription={"source": "pdf_upload", "filename": file.filename},
+    ))
+    db.add(InteractionResultRecord(
+        patient_id=patient_id,
+        risk_level=result.get("risk_level"),
+        result=result,
+    ))
+    await manager.broadcast({"type": "drug_interaction_result", "data": result})
+    await db.commit()
+
+    return {
+        "patient_id": patient_id,
+        "medicines": result.get("medicines"),
+        "dangerous_combinations": result.get("dangerous_combinations"),
+        "risk_level": result.get("risk_level"),
+        "recommendations": result.get("recommendations"),
+        "clinical_note": result.get("clinical_note"),
+        "report_pdf_available": bool(result.get("drug_report_pdf_base64")),
+        "report_download_url": f"/api/download-report/{patient_id}",
+    }
+
+
+@router.get("/download-audit/{patient_id}")
+async def download_audit(patient_id: str):
+    """Returns the signed SepsisGuard audit PDF for download."""
+    result = _sepsisguard_results.get(patient_id)
+    if not result or not result.get("signed_audit_pdf_base64"):
+        raise HTTPException(status_code=404, detail="No audit PDF available for this patient")
+
+    pdf_bytes = base64.b64decode(result["signed_audit_pdf_base64"])
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="audit_{patient_id}.pdf"'},
+    )
+
+
+@router.get("/download-report/{patient_id}")
+async def download_report(patient_id: str):
+    """Returns the CrossCare drug interaction report PDF for download."""
+    result = _crosscare_results.get(patient_id)
+    if not result or not result.get("drug_report_pdf_base64"):
+        raise HTTPException(status_code=404, detail="No drug interaction report available for this patient")
+
+    pdf_bytes = base64.b64decode(result["drug_report_pdf_base64"])
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="drug_report_{patient_id}.pdf"'},
+    )
 
 
 @router.get("/health")
