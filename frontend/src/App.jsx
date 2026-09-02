@@ -1,25 +1,37 @@
-// Top-level app shell — sets up routing between the SepsisGuard and CrossCare pages.
+// Top-level app shell — sidebar navigation, toast/socket providers, and routing.
 
-import { HashRouter, Routes, Route, Link } from "react-router-dom";
+import { HashRouter, Route, Routes } from "react-router-dom";
+import Sidebar from "./components/Layout/Sidebar.jsx";
+import { ToastProvider } from "./components/ui/Toast.jsx";
+import { SocketProvider } from "./hooks/useMediGuardSocket.jsx";
+import Overview from "./pages/Overview.jsx";
 import SepsisGuard from "./pages/SepsisGuard.jsx";
 import CrossCare from "./pages/CrossCare.jsx";
 
 export default function App() {
   return (
-    <HashRouter>
-      <div className="min-h-screen bg-slate-950 text-slate-100">
-        <header className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-          <span className="text-xl font-bold">MediGuard</span>
-          <nav className="flex gap-4 text-sm">
-            <Link to="/">SepsisGuard</Link>
-            <Link to="/crosscare">CrossCare</Link>
-          </nav>
-        </header>
-        <Routes>
-          <Route path="/" element={<SepsisGuard />} />
-          <Route path="/crosscare" element={<CrossCare />} />
-        </Routes>
-      </div>
-    </HashRouter>
+    <ToastProvider>
+      <SocketProvider>
+        <HashRouter>
+          <div className="min-h-screen bg-base-950">
+            <div
+              className="pointer-events-none fixed inset-0 z-0 opacity-40"
+              style={{
+                background:
+                  "radial-gradient(circle at 15% 0%, rgba(45,212,191,0.08), transparent 40%), radial-gradient(circle at 85% 20%, rgba(59,130,246,0.08), transparent 40%)",
+              }}
+            />
+            <Sidebar />
+            <main className="relative z-10 ml-64 min-h-screen">
+              <Routes>
+                <Route path="/" element={<Overview />} />
+                <Route path="/sepsisguard" element={<SepsisGuard />} />
+                <Route path="/crosscare" element={<CrossCare />} />
+              </Routes>
+            </main>
+          </div>
+        </HashRouter>
+      </SocketProvider>
+    </ToastProvider>
   );
 }
