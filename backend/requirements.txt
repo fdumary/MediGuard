@@ -1,4 +1,3 @@
-langchain
 langgraph
 langchain-groq
 fastapi
@@ -14,3 +13,4 @@ pytesseract
 aiofiles
 sqlalchemy
 aiosqlite
+pytest
