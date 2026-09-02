@@ -6,6 +6,7 @@ from typing import Optional, TypedDict
 
 class SepsisGuardState(TypedDict, total=False):
     patient_id: str
+    patient_name: str
     vitals: dict
     current_medications: list[str]
     qsofa_score: int
@@ -34,6 +35,8 @@ class SepsisGuardState(TypedDict, total=False):
 
 class CrossCareState(TypedDict, total=False):
     patient_id: str
+    patient_name: str
+    doctor_name: str
     raw_prescriptions: list[dict]
     ocr_text: list[str]
     prescription_pdf_base64: Optional[str]
@@ -47,6 +50,7 @@ class CrossCareState(TypedDict, total=False):
     heart_risk: bool
     risk_level: str
     recommendations: list[str]
+    medication_plan: list[dict]
     clinical_note: str
     alert_message: str
     drug_report_pdf_base64: Optional[str]

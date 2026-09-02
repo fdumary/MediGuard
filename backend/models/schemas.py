@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 class PatientVitals(BaseModel):
     patient_id: str
+    patient_name: str = ""
     heart_rate: float
     blood_pressure_systolic: float
     blood_pressure_diastolic: float
@@ -15,6 +16,7 @@ class PatientVitals(BaseModel):
     lactate: float
     wbc_count: float
     timestamp: str
+    current_medications: List[str] = []
 
 
 class SepsisAlert(BaseModel):
@@ -37,6 +39,7 @@ class TreatmentPlan(BaseModel):
 
 class Prescription(BaseModel):
     patient_id: str
+    patient_name: str = ""
     doctor_name: str
     medicines: List[str]
     dosages: List[str]
