@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-base-950 text-base-100 antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  ::selection {
+    @apply bg-brand-600/40 text-white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-base-700 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-base-600;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-base-800 bg-base-900/60 backdrop-blur-sm shadow-card;
+  }
+
+  .card-glow {
+    @apply card shadow-glow border-brand-700/40;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
+      transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-base-950;
+  }
+
+  .btn-primary {
+    @apply btn bg-gradient-to-b from-brand-500 to-brand-600 text-base-950 hover:brightness-110
+      shadow-[0_1px_0_rgba(255,255,255,0.25)_inset] focus-visible:ring-brand-500;
+  }
+
+  .btn-secondary {
+    @apply btn bg-base-800 text-base-100 border border-base-700 hover:bg-base-700
+      focus-visible:ring-base-500;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-base-300 hover:text-base-50 hover:bg-base-800/60;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-base-700 bg-base-850 px-3 py-2 text-sm text-base-100
+      placeholder:text-base-500 outline-none transition-colors
+      focus:border-brand-500 focus:ring-1 focus:ring-brand-500;
+  }
+
+  .label {
+    @apply block text-xs font-medium uppercase tracking-wide text-base-400 mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+}
