@@ -9,6 +9,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.websocket import manager
@@ -37,7 +38,12 @@ async def list_patients():
 @router.post("/sepsisguard/vitals")
 async def submit_vitals(vitals: PatientVitals, db: AsyncSession = Depends(get_session)):
     """Feeds a vitals reading into the SepsisGuard LangGraph pipeline."""
-    result = sepsisguard_app.invoke({"patient_id": vitals.patient_id, "vitals": vitals.model_dump()})
+    result = sepsisguard_app.invoke({
+        "patient_id": vitals.patient_id,
+        "patient_name": vitals.patient_name,
+        "vitals": vitals.model_dump(),
+        "current_medications": vitals.current_medications,
+    })
     _sepsisguard_results[vitals.patient_id] = result
 
     db.add(VitalsRecord(patient_id=vitals.patient_id, vitals=vitals.model_dump()))
@@ -59,6 +65,8 @@ async def submit_prescription(prescription: Prescription, db: AsyncSession = Dep
     result = crosscare_app.invoke(
         {
             "patient_id": prescription.patient_id,
+            "patient_name": prescription.patient_name,
+            "doctor_name": prescription.doctor_name,
             "ocr_text": [],
             "medicines": prescription.medicines,
             "dosages": prescription.dosages,
@@ -83,7 +91,13 @@ async def submit_prescription(prescription: Prescription, db: AsyncSession = Dep
 
 
 @router.post("/upload-prescription")
-async def upload_prescription(patient_id: str, file: UploadFile = File(...), db: AsyncSession = Depends(get_session)):
+async def upload_prescription(
+    patient_id: str,
+    patient_name: str = "",
+    doctor_name: str = "",
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_session),
+):
     """
     Accepts an uploaded prescription PDF, runs it through the CrossCare
     pipeline (Nutrient Data Extraction -> Pharmacology Interaction ->
@@ -94,6 +108,8 @@ async def upload_prescription(patient_id: str, file: UploadFile = File(...), db:
     result = crosscare_app.invoke(
         {
             "patient_id": patient_id,
+            "patient_name": patient_name,
+            "doctor_name": doctor_name,
             "ocr_text": [],
             "prescription_pdf_base64": base64.b64encode(pdf_bytes).decode(),
         }
@@ -102,7 +118,7 @@ async def upload_prescription(patient_id: str, file: UploadFile = File(...), db:
 
     db.add(PrescriptionRecord(
         patient_id=patient_id,
-        doctor_name=None,
+        doctor_name=doctor_name or None,
         prescription={"source": "pdf_upload", "filename": file.filename},
     ))
     db.add(InteractionResultRecord(
@@ -113,22 +129,29 @@ async def upload_prescription(patient_id: str, file: UploadFile = File(...), db:
     await manager.broadcast({"type": "drug_interaction_result", "data": result})
     await db.commit()
 
-    return {
-        "patient_id": patient_id,
-        "medicines": result.get("medicines"),
-        "dangerous_combinations": result.get("dangerous_combinations"),
-        "risk_level": result.get("risk_level"),
-        "recommendations": result.get("recommendations"),
-        "clinical_note": result.get("clinical_note"),
-        "report_pdf_available": bool(result.get("drug_report_pdf_base64")),
-        "report_download_url": f"/api/download-report/{patient_id}",
-    }
+    # Returns the full graph state (same shape as /crosscare/prescriptions)
+    # so both submission paths are interchangeable for callers/UI code.
+    return result
 
 
 @router.get("/download-audit/{patient_id}")
-async def download_audit(patient_id: str):
-    """Returns the signed SepsisGuard audit PDF for download."""
+async def download_audit(patient_id: str, db: AsyncSession = Depends(get_session)):
+    """
+    Returns the signed SepsisGuard audit PDF for download. Checks the
+    in-memory hot cache first, then falls back to the most recent SQLite
+    record so downloads survive a server restart.
+    """
     result = _sepsisguard_results.get(patient_id)
+    if not result or not result.get("signed_audit_pdf_base64"):
+        query = (
+            select(SepsisAlertRecord)
+            .where(SepsisAlertRecord.patient_id == patient_id)
+            .order_by(SepsisAlertRecord.created_at.desc())
+            .limit(1)
+        )
+        record = (await db.execute(query)).scalar_one_or_none()
+        result = record.result if record else None
+
     if not result or not result.get("signed_audit_pdf_base64"):
         raise HTTPException(status_code=404, detail="No audit PDF available for this patient")
 
@@ -141,9 +164,23 @@ async def download_audit(patient_id: str):
 
 
 @router.get("/download-report/{patient_id}")
-async def download_report(patient_id: str):
-    """Returns the CrossCare drug interaction report PDF for download."""
+async def download_report(patient_id: str, db: AsyncSession = Depends(get_session)):
+    """
+    Returns the CrossCare drug interaction report PDF for download. Checks
+    the in-memory hot cache first, then falls back to the most recent
+    SQLite record so downloads survive a server restart.
+    """
     result = _crosscare_results.get(patient_id)
+    if not result or not result.get("drug_report_pdf_base64"):
+        query = (
+            select(InteractionResultRecord)
+            .where(InteractionResultRecord.patient_id == patient_id)
+            .order_by(InteractionResultRecord.created_at.desc())
+            .limit(1)
+        )
+        record = (await db.execute(query)).scalar_one_or_none()
+        result = record.result if record else None
+
     if not result or not result.get("drug_report_pdf_base64"):
         raise HTTPException(status_code=404, detail="No drug interaction report available for this patient")
 

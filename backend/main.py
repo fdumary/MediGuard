@@ -1,6 +1,8 @@
 # MediGuard FastAPI entrypoint. Wires up the REST routes, the live WebSocket
 # feed, and CORS so the React frontend can talk to this backend.
 
+from contextlib import asynccontextmanager
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,10 +14,14 @@ from api.routes import router
 from api.websocket import manager
 from database import init_db
 
-app = FastAPI(title="MediGuard API", description="Complete Patient Safety Platform")
-@app.on_event("startup")
-async def on_startup():
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     await init_db()
+    yield
+
+
+app = FastAPI(title="MediGuard API", description="Complete Patient Safety Platform", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
