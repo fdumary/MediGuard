@@ -1,52 +1,62 @@
-// CrossCare dashboard page — submit prescriptions and view live drug interaction results.
+// CrossCare page — prescription input (manual or PDF), live agent pipeline, and full results.
 
-import { useEffect, useState } from "react";
-import Dashboard from "../components/Dashboard.jsx";
-import AgentPipeline from "../components/AgentPipeline.jsx";
-import DrugInteractionPanel from "../components/DrugInteractionPanel.jsx";
-import { connectMediGuardSocket, submitPrescription } from "../lib/api.js";
+import { FileSignature, Pill, ScanText } from "lucide-react";
+import { useState } from "react";
+import PageHeader from "../components/Layout/PageHeader.jsx";
+import PipelineTracker from "../components/PipelineTracker.jsx";
+import PrescriptionPanel from "../components/CrossCare/PrescriptionPanel.jsx";
+import ResultsPanel from "../components/CrossCare/ResultsPanel.jsx";
+import Card, { CardHeader } from "../components/ui/Card.jsx";
+import { useToast } from "../components/ui/Toast.jsx";
+import { submitPrescription, uploadPrescriptionPdf } from "../lib/api.js";
 
-const CROSSCARE_AGENTS = [
-  "Prescription Ingestion",
-  "Pharmacology Interaction",
-  "Physician Recommendation",
+const STEPS = [
+  { name: "Prescription Ingestion", icon: ScanText, didRun: (r) => (r.medicines ?? []).length > 0 },
+  { name: "Pharmacology Interaction", icon: Pill, didRun: (r) => r.risk_level !== undefined },
+  { name: "Physician Recommendation", icon: FileSignature, didRun: (r) => (r.recommendations ?? []).length >= 0 && r.clinical_note !== undefined },
 ];
 
 export default function CrossCare() {
   const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const { pushToast } = useToast();
 
-  useEffect(() => {
-    const socket = connectMediGuardSocket((message) => {
-      if (message.type === "drug_interaction_result") {
-        setResult(message.data);
-      }
-    });
-    return () => socket.close();
-  }, []);
-
-  const handleDemoSubmit = async () => {
-    const response = await submitPrescription({
-      patient_id: "P-003",
-      doctor_name: "Dr. Patel",
-      medicines: ["Warfarin", "Amiodarone"],
-      dosages: ["5mg daily", "200mg daily"],
-      conditions: ["Atrial fibrillation"],
-    });
-    setResult(response);
-  };
+  async function runPipeline(promise) {
+    setLoading(true);
+    setResult(null);
+    try {
+      const data = await promise;
+      setResult(data);
+    } catch (err) {
+      pushToast({ tone: "danger", title: "Pipeline failed", description: err.message });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <Dashboard title="CrossCare">
-      <div className="space-y-4">
-        <button
-          onClick={handleDemoSubmit}
-          className="rounded bg-sky-600 hover:bg-sky-500 px-4 py-2 text-sm font-medium"
-        >
-          Submit Demo Prescription
-        </button>
-        <AgentPipeline agents={CROSSCARE_AGENTS.map((name) => ({ name, status: "idle" }))} />
+    <div className="pb-16">
+      <PageHeader
+        eyebrow="Module 2"
+        title="CrossCare"
+        subtitle="Reads prescriptions from multiple doctors, detects dangerous drug combinations, and recommends safe alternatives."
+      />
+
+      <div className="grid gap-6 px-8 pt-8 lg:grid-cols-[380px_1fr]">
+        <div className="space-y-6">
+          <PrescriptionPanel
+            onSubmitManual={(prescription) => runPipeline(submitPrescription(prescription))}
+            onSubmitPdf={(payload) => runPipeline(uploadPrescriptionPdf(payload))}
+            loading={loading}
+          />
+          <Card>
+            <CardHeader title="Agent pipeline" subtitle="3 CrossCare agents" />
+            <PipelineTracker steps={STEPS} isRunning={loading} result={result} />
+          </Card>
+        </div>
+
+        <ResultsPanel result={result} />
       </div>
-      <DrugInteractionPanel result={result} />
-    </Dashboard>
+    </div>
   );
 }
