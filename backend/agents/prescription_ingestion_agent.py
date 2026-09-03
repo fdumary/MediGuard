@@ -16,7 +16,7 @@ from prompts.ingestion_prompt import PRESCRIPTION_INGESTION_PROMPT
 from tools.fhir_parser import extract_medicine_dosage_pairs, prescription_to_fhir_medication_statements
 from tools.nutrient_tool import extract_from_pdf
 
-llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY"))
+llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY") or "gsk_placeholder")
 
 
 class NormalizedPrescription(BaseModel):

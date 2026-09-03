@@ -22,6 +22,15 @@ def test_health_endpoint():
         assert response.json() == {"status": "ok"}
 
 
+def test_feed_latest_endpoint():
+    with TestClient(app) as client:
+        response = client.get("/api/feed/latest")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "online"
+
+
+
 def test_list_patients_returns_three_simulated_patients():
     with TestClient(app) as client:
         response = client.get("/api/patients")

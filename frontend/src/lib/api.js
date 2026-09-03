@@ -59,6 +59,12 @@ export async function checkHealth() {
   return (await handle(res)).json();
 }
 
+export async function getLatestFeed() {
+  const res = await fetch(`${API_BASE_URL}/api/feed/latest`);
+  return (await handle(res)).json();
+}
+
+
 export async function submitVitals(vitals) {
   const res = await fetch(`${API_BASE_URL}/api/sepsisguard/vitals`, {
     method: "POST",

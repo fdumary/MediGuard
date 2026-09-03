@@ -195,3 +195,15 @@ async def download_report(patient_id: str, db: AsyncSession = Depends(get_sessio
 @router.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+
+@router.get("/feed/latest")
+async def get_latest_feed():
+    latest_sepsis = list(_sepsisguard_results.values())[-1] if _sepsisguard_results else None
+    latest_interaction = list(_crosscare_results.values())[-1] if _crosscare_results else None
+    return {
+        "status": "online",
+        "latest_sepsis_alert": latest_sepsis,
+        "latest_interaction_result": latest_interaction,
+    }
+

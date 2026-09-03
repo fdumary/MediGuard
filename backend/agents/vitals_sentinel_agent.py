@@ -13,7 +13,7 @@ from models.schemas import PatientVitals
 from prompts.vitals_prompt import VITALS_SENTINEL_PROMPT
 from tools.sofa_calculator import calculate_qsofa, classify_severity
 
-llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY"))
+llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY") or "gsk_placeholder")
 
 
 class VitalsAssessment(BaseModel):

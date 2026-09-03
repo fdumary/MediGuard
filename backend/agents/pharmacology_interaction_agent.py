@@ -11,7 +11,7 @@ from graph.state import CrossCareState
 from prompts.interaction_prompt import PHARMACOLOGY_INTERACTION_PROMPT
 from tools.rxnorm_api_tool import check_interaction_pair, get_drug_details
 
-llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY"))
+llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY") or "gsk_placeholder")
 
 
 class InteractionAssessment(BaseModel):

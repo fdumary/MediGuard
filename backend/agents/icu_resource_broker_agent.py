@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from graph.state import SepsisGuardState
 from prompts.resource_prompt import ICU_RESOURCE_BROKER_PROMPT
 
-llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY"))
+llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY") or "gsk_placeholder")
 
 
 class NursingNotification(BaseModel):

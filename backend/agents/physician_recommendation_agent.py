@@ -20,7 +20,7 @@ from tools.doctavian_tool import generate_drug_interaction_document
 from tools.nutrient_tool import generate_pdf
 from tools.rxnorm_api_tool import find_alternatives
 
-llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY"))
+llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY") or "gsk_placeholder")
 
 
 class MedicationPlanItem(BaseModel):

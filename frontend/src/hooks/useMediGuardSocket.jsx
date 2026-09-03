@@ -1,9 +1,10 @@
 // Connects to the MediGuard WebSocket once at the app root and fans out
 // live events (sepsis alerts, drug interaction results) to any page via
 // context, while also surfacing them as toast notifications.
+// Includes automatic HTTP polling fallback for serverless platforms (Vercel).
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { connectMediGuardSocket } from "../lib/api";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { connectMediGuardSocket, getLatestFeed } from "../lib/api";
 import { useToast } from "../components/ui/Toast";
 
 const SocketContext = createContext(null);
@@ -13,12 +14,12 @@ export function SocketProvider({ children }) {
   const [lastSepsisAlert, setLastSepsisAlert] = useState(null);
   const [lastInteractionResult, setLastInteractionResult] = useState(null);
   const { pushToast } = useToast();
+  const socketConnectedRef = useRef(false);
 
   useEffect(() => {
     let disposed = false;
     let socket;
     let retryTimer;
-    let failureCount = 0;
 
     const handleMessage = (message) => {
       if (message.type === "sepsis_alert" && message.data?.sepsis_alert) {
@@ -42,33 +43,62 @@ export function SocketProvider({ children }) {
       }
     };
 
+    const pollFallback = async () => {
+      if (disposed) return;
+      try {
+        const feed = await getLatestFeed();
+        if (feed && feed.status === "online") {
+          if (!socketConnectedRef.current) {
+            setStatus("connected");
+          }
+          if (feed.latest_sepsis_alert) {
+            setLastSepsisAlert(feed.latest_sepsis_alert);
+          }
+          if (feed.latest_interaction_result) {
+            setLastInteractionResult(feed.latest_interaction_result);
+          }
+        }
+      } catch {
+        if (!socketConnectedRef.current) {
+          setStatus("disconnected");
+        }
+      }
+    };
+
     const connect = () => {
       if (disposed) return;
       socket = connectMediGuardSocket(handleMessage, (s) => {
         if (disposed) return;
         if (s === "connected") {
-          failureCount = 0;
+          socketConnectedRef.current = true;
           setStatus("connected");
-        } else if (s === "disconnected" || s === "error") {
-          failureCount++;
-          // Give 2 transient retry attempts as 'connecting' before marking 'disconnected'
-          if (failureCount < 3) {
-            setStatus("connecting");
-          } else {
-            setStatus("disconnected");
-          }
+        } else {
+          socketConnectedRef.current = false;
+          // If socket drops, immediately poll HTTP fallback to check if backend is alive
+          pollFallback();
           if (s === "disconnected") {
             clearTimeout(retryTimer);
-            retryTimer = setTimeout(connect, 2000);
+            retryTimer = setTimeout(connect, 3000);
           }
         }
       });
     };
+
     connect();
+    pollFallback();
+
+    // Heartbeat poll every 6s to ensure the feed never stays offline if socket drops
+    const pollTimer = setInterval(() => {
+      if (!socketConnectedRef.current) {
+        pollFallback();
+      }
+    }, 6000);
 
     return () => {
       disposed = true;
+      socketConnectedRef.current = false;
       clearTimeout(retryTimer);
+      clearInterval(pollTimer);
       socket?.close();
     };
   }, [pushToast]);

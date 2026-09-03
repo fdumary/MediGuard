@@ -11,7 +11,7 @@ from graph.state import SepsisGuardState
 from prompts.pharmaco_prompt import PHARMACO_GENOMIC_PROMPT
 from tools.nlm_api_tool import check_drug_interactions, find_rxcui_by_name
 
-llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY"))
+llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY") or "gsk_placeholder")
 
 
 class AntibioticPlan(BaseModel):

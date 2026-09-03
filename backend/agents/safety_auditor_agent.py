@@ -14,7 +14,7 @@ from models.schemas import TreatmentPlan
 from prompts.auditor_prompt import SAFETY_AUDITOR_PROMPT
 from tools.nutrient_tool import generate_pdf, sign_pdf
 
-llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY"))
+llm = ChatGroq(model="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY") or "gsk_placeholder")
 
 
 class ComplianceCheck(BaseModel):
