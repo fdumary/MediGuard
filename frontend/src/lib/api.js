@@ -1,8 +1,39 @@
 // Fetch/WebSocket client wrapping the MediGuard FastAPI backend. Covers
 // every endpoint in backend/api/routes.py.
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
+export function getApiBaseUrl() {
+  const custom = import.meta.env.VITE_API_BASE_URL;
+  if (custom !== undefined && custom !== "") {
+    return custom.replace(/\/+$/, "");
+  }
+  if (typeof window !== "undefined") {
+    // If running in local dev on localhost
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      return "http://localhost:8000";
+    }
+    // In production on Vercel or cloud deployments, make same-origin requests
+    return "";
+  }
+  return "http://localhost:8000";
+}
+
+export function getWsUrls() {
+  const custom = import.meta.env.VITE_WS_URL;
+  if (custom !== undefined && custom !== "") {
+    return [custom];
+  }
+  if (typeof window !== "undefined") {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      return ["ws://localhost:8000/ws", "ws://localhost:8000/api/ws"];
+    }
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = window.location.host;
+    return [`${protocol}//${host}/ws`, `${protocol}//${host}/api/ws`];
+  }
+  return ["ws://localhost:8000/ws", "ws://localhost:8000/api/ws"];
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 async function handle(res) {
   if (!res.ok) {
@@ -70,16 +101,80 @@ export function downloadReportUrl(patientId) {
 }
 
 export function connectMediGuardSocket(onMessage, onStatusChange) {
-  const socket = new WebSocket(WS_URL);
-  socket.onopen = () => onStatusChange?.("connected");
-  socket.onclose = () => onStatusChange?.("disconnected");
-  socket.onerror = () => onStatusChange?.("error");
-  socket.onmessage = (event) => {
+  const urls = getWsUrls();
+  let currentIdx = 0;
+  let socket = null;
+  let pingInterval = null;
+  let isClosed = false;
+
+  function tryConnect() {
+    if (isClosed) return;
+    const url = urls[currentIdx];
     try {
-      onMessage(JSON.parse(event.data));
-    } catch {
-      // ignore non-JSON frames
+      socket = new WebSocket(url);
+    } catch (e) {
+      onStatusChange?.("error");
+      return;
     }
+
+    socket.onopen = () => {
+      onStatusChange?.("connected");
+      // Keep-alive heartbeat: send ping every 15s to keep connection open on Vercel / serverless
+      if (pingInterval) clearInterval(pingInterval);
+      pingInterval = setInterval(() => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          try {
+            socket.send("ping");
+          } catch {
+            // ignore send error
+          }
+        }
+      }, 15000);
+    };
+
+    socket.onclose = () => {
+      if (pingInterval) clearInterval(pingInterval);
+      if (!isClosed) {
+        // Rotate to alternate URL for next retry
+        currentIdx = (currentIdx + 1) % urls.length;
+        onStatusChange?.("disconnected");
+      }
+    };
+
+    socket.onerror = () => {
+      onStatusChange?.("error");
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        if (event.data === "pong") return;
+        const data = JSON.parse(event.data);
+        if (data.type === "pong" || data.type === "connection_established") {
+          onStatusChange?.("connected");
+          return;
+        }
+        onMessage(data);
+      } catch {
+        // ignore non-JSON frames
+      }
+    };
+  }
+
+  tryConnect();
+
+  return {
+    close() {
+      isClosed = true;
+      if (pingInterval) clearInterval(pingInterval);
+      if (socket) socket.close();
+    },
+    send(data) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(typeof data === "string" ? data : JSON.stringify(data));
+      }
+    },
+    get raw() {
+      return socket;
+    },
   };
-  return socket;
 }

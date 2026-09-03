@@ -18,6 +18,7 @@ export function SocketProvider({ children }) {
     let disposed = false;
     let socket;
     let retryTimer;
+    let failureCount = 0;
 
     const handleMessage = (message) => {
       if (message.type === "sepsis_alert" && message.data?.sepsis_alert) {
@@ -42,14 +43,24 @@ export function SocketProvider({ children }) {
     };
 
     const connect = () => {
+      if (disposed) return;
       socket = connectMediGuardSocket(handleMessage, (s) => {
         if (disposed) return;
-        setStatus(s);
-        // "error" is always followed by "disconnected" (close) for the same
-        // socket, so only schedule a reconnect from the close transition to
-        // avoid double-scheduling.
-        if (s === "disconnected") {
-          retryTimer = setTimeout(connect, 3000);
+        if (s === "connected") {
+          failureCount = 0;
+          setStatus("connected");
+        } else if (s === "disconnected" || s === "error") {
+          failureCount++;
+          // Give 2 transient retry attempts as 'connecting' before marking 'disconnected'
+          if (failureCount < 3) {
+            setStatus("connecting");
+          } else {
+            setStatus("disconnected");
+          }
+          if (s === "disconnected") {
+            clearTimeout(retryTimer);
+            retryTimer = setTimeout(connect, 2000);
+          }
         }
       });
     };

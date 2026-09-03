@@ -42,3 +42,15 @@ def test_download_report_404_for_unknown_patient():
     with TestClient(app) as client:
         response = client.get("/api/download-report/NO-SUCH-PATIENT")
         assert response.status_code == 404
+
+
+def test_websocket_endpoints():
+    with TestClient(app) as client:
+        for endpoint in ("/ws", "/api/ws"):
+            with client.websocket_connect(endpoint) as ws:
+                ack = ws.receive_json()
+                assert ack["type"] == "connection_established"
+                ws.send_text("ping")
+                reply = ws.receive_text()
+                assert reply == "pong"
+

@@ -1,10 +1,31 @@
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from sqlalchemy import Column, Integer, DateTime, String, JSON
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = "sqlite+aiosqlite:///./mediguard.db"
+
+def _resolve_database_url() -> str:
+    explicit = os.getenv("DATABASE_URL")
+    if explicit:
+        return explicit
+
+    if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+        return "sqlite+aiosqlite:////tmp/mediguard.db"
+
+    # Test if current directory is writable for SQLite
+    try:
+        test_path = Path("./.write_test_mediguard")
+        test_path.touch()
+        test_path.unlink()
+        return "sqlite+aiosqlite:///./mediguard.db"
+    except Exception:
+        return "sqlite+aiosqlite:////tmp/mediguard.db"
+
+
+DATABASE_URL = _resolve_database_url()
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
