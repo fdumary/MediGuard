@@ -238,7 +238,13 @@ VITE_WS_URL=ws://localhost:8000/ws
 
 ## Team
 
-_team portion._
+Francesca Dumary - debugging, presentation, submission
+
+Habib Ur Rahman - ideation, api integration
+
+Aryan Sharma - frontend, backend, agent
+
+Rakshita Kumari - backend, frontend
 
 ## Hackathon
 
