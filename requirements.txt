@@ -1,0 +1,16 @@
+langgraph
+langchain-groq
+fastapi
+uvicorn
+python-dotenv
+requests
+pydantic
+httpx
+websockets
+python-multipart
+Pillow
+pytesseract
+aiofiles
+sqlalchemy
+aiosqlite
+pytest
