@@ -240,11 +240,11 @@ VITE_WS_URL=ws://localhost:8000/ws
 
 Francesca Dumary - debugging, presentation, submission
 
-Habib Ur Rahman - ideation, api integration
+Habib Ur Rahman - frotend, backend and AI engineer
 
-Aryan Sharma - frontend, backend, agent
+Aryan Sharma - Documentation
 
-Rakshita Kumari - backend, frontend
+Rakshita Kumari -  ideation, api integration
 
 ## Hackathon
 
