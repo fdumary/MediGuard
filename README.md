@@ -1,5 +1,19 @@
 # MediGuard
 
+![LangGraph](https://img.shields.io/badge/LangGraph-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)
+![Groq](https://img.shields.io/badge/Groq-F55036?style=for-the-badge&logo=groq&logoColor=white)
+![LLaMA](https://img.shields.io/badge/LLaMA_3.1-0467DF?style=for-the-badge&logo=meta&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![WebSocket](https://img.shields.io/badge/WebSocket-010101?style=for-the-badge&logo=websocket&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![FHIR](https://img.shields.io/badge/FHIR-EF2D5E?style=for-the-badge&logoColor=white)
+![Render](https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)
+
+---
+
 **Complete Patient Safety Platform**
 
 MediGuard is an autonomous multi-agent AI system that protects hospital patients from two of the biggest killers in modern medicine — **sepsis** and **dangerous drug combinations**. It uses **8 specialized AI agents** powered by **LangGraph** and **Groq LLaMA 3.1** that work together autonomously to detect problems, recommend solutions, and alert the medical team in real time.
@@ -17,12 +31,16 @@ MediGuard is a two-module patient-safety platform that sits between raw clinical
 
 Both modules run on independent LangGraph workflows, share a common FastAPI backend, and stream live results to a React dashboard over WebSocket.
 
+---
+
 ## The Problem
 
 - **Sepsis** kills more hospital patients than any other single condition, and mortality rises roughly 8% for every hour treatment is delayed. Diagnosis relies on a nurse or doctor noticing a pattern across many vitals — something that is easy to miss during a busy shift.
 - **Dangerous drug combinations** are common when a patient sees multiple specialists who don't see each other's prescriptions. No single doctor has the full picture, and manual cross-checking against every other active medication is impractical at scale.
 
 Both problems share the same root cause: **critical signals are scattered across systems and people, and no one is watching all of it, all the time.**
+
+---
 
 ## The Solution
 
@@ -31,25 +49,27 @@ MediGuard assigns each piece of this problem to a dedicated AI agent instead of 
 - **SepsisGuard**: Detects early sepsis warning signs in ICU patients and automatically dispatches a complete treatment plan — antibiotics, bed allocation, and drug safety checks — in under 15 minutes.
 - **CrossCare**: Reads patient prescriptions from multiple doctors, automatically detects dangerous drug combinations, and recommends safe alternatives using the NLM and RxNorm APIs.
 
+---
+
 ## Architecture
 
 ```
                               ┌────────────────────────────┐
-                              │        React Dashboard      │
-                              │  (SepsisGuard / CrossCare)  │
-                              └───────────────▲──────────────┘
+                              │       React Dashboard      │
+                              │  (SepsisGuard / CrossCare) │
+                              └───────────────▲────────────┘
                                               │ WebSocket + REST
                               ┌───────────────┴──────────────┐
-                              │        FastAPI Backend        │
-                              │   /api routes + /ws socket    │
+                              │       FastAPI Backend        │
+                              │   /api routes + /ws socket   │
                               └───────────────┬──────────────┘
                                               │
                  ┌────────────────────────────┴────────────────────────────┐
-                 │                                                          │
-     ┌───────────▼────────────┐                              ┌────────────▼────────────┐
-     │   SepsisGuard Workflow   │                              │   CrossCare Workflow     │
-     │        (LangGraph)       │                              │        (LangGraph)       │
-     └───────────┬────────────┘                              └────────────┬────────────┘
+                 │                                                         │
+     ┌───────────▼────────────┐                               ┌────────────▼────────────┐
+     │  SepsisGuard Workflow  │                               │   CrossCare Workflow    │
+     │       (LangGraph)      │                               │       (LangGraph)       │
+     └───────────┬────────────┘                               └────────────┬────────────┘
                  │                                                          │
    1. Vitals Sentinel Agent                                   6. Prescription Ingestion Agent
       (reads vitals every 30s, qSOFA score)                       (OCR → FHIR MedicationStatement)
@@ -58,7 +78,7 @@ MediGuard assigns each piece of this problem to a dedicated AI agent instead of 
    2. Clinical Strategist Agent                                7. Pharmacology Interaction Agent
       (orchestrates the response)                                  (RxNorm cross-check, risk level)
                  │                                                          │
-        ┌────────┴────────┐                                                ▼
+        ┌────────┴────────┐                                                 ▼
         ▼                 ▼                                    8. Physician Recommendation Agent
 3. Pharmaco-Genomic   4. ICU Resource Broker                       (safe alternatives, clinical note)
    Agent (NLM API,       Agent (bed + pump,
@@ -74,6 +94,8 @@ MediGuard assigns each piece of this problem to a dedicated AI agent instead of 
 ```
 
 Both LangGraph workflows are compiled independently (`sepsisguard_workflow.py`, `crosscare_workflow.py`) and share the same underlying LLM client configuration (Groq LLaMA 3.1) and FastAPI process, but have no runtime dependency on each other.
+
+---
 
 ## The 8 AI Agents
 
@@ -91,6 +113,8 @@ Both LangGraph workflows are compiled independently (`sepsisguard_workflow.py`, 
 7. **Pharmacology Interaction Agent** — Cross-checks all drugs via the RxNorm API, detects dangerous combinations, and flags kidney and heart risks.
 8. **Physician Recommendation Agent** — Suggests safe alternative medicines, writes a clinical note for the doctor, and sends an alert with recommendations.
 
+---
+
 ## Tech Stack
 
 | Layer              | Technology                              |
@@ -104,6 +128,8 @@ Both LangGraph workflows are compiled independently (`sepsisguard_workflow.py`, 
 | Database            | SQLite (hackathon build)                 |
 | Deployment          | Render (free tier)                       |
 | Patient Data        | Simulated FHIR JSON                      |
+
+---
 
 ## Project Structure
 
@@ -179,6 +205,8 @@ mediguard/
 └── README.md
 ```
 
+---
+
 ## How to Run
 
 ### Backend setup
@@ -209,6 +237,8 @@ npm run dev
 
 The dashboard will be available at `http://localhost:5173` (default Vite port) and will connect to the backend at the URL configured in `frontend/.env`.
 
+---
+
 ## API Endpoints
 
 | Method | Endpoint                        | Description                                                        |
@@ -219,6 +249,8 @@ The dashboard will be available at `http://localhost:5173` (default Vite port) a
 | POST   | `/api/sepsisguard/vitals`        | Submits a vitals reading and runs the SepsisGuard LangGraph pipeline. |
 | POST   | `/api/crosscare/prescriptions`   | Submits a prescription and runs the CrossCare LangGraph pipeline.  |
 | WS     | `/ws`                            | Live WebSocket feed broadcasting sepsis alerts and drug interaction results. |
+
+---
 
 ## Environment Variables
 
@@ -236,15 +268,25 @@ VITE_API_BASE_URL=http://localhost:8000
 VITE_WS_URL=ws://localhost:8000/ws
 ```
 
+---
+
+## Demo Video
+
+[![MediGuard Demo](https://img.youtube.com/vi/BN3U7-NQ-5w/maxresdefault.jpg)](https://www.youtube.com/watch?v=BN3U7-NQ-5w)
+
+---
+
 ## Team
 
-Francesca Dumary - debugging, presentation, submission
+Francesca Dumary - Debugging, Presentation, Submission
 
-Habib Ur Rahman - frotend, backend and AI engineer
+Habib Ur Rahman - Frontend, Backend and AI Engineer
 
 Aryan Sharma - Documentation
 
-Rakshita Kumari -  ideation, api integration
+Rakshita Kumari - Ideation, API Integration
+
+---
 
 ## Hackathon
 
